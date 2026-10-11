@@ -157,6 +157,46 @@ describe('SecretRegistry', () => {
   });
 
   describe('Mask Secrets In Output', () => {
+    it('uses exported values without resolving callable secrets again', () => {
+      const registry = new SecretRegistry();
+      let callCount = 0;
+      let value = 'original-token';
+      registry.updateSecrets({
+        TOKEN: () => {
+          callCount++;
+          return value;
+        },
+      });
+
+      expect(registry.getSecretsAsEnvVars('$TOKEN')).toEqual({ TOKEN: 'original-token' });
+      expect(callCount).toBe(1);
+
+      value = 'rotated-token';
+      expect(registry.maskSecretsInOutput('original-token rotated-token')).toBe(
+        '<secret-hidden> rotated-token'
+      );
+      expect(registry.maskSecretsInOutput('original-token')).toBe('<secret-hidden>');
+      expect(callCount).toBe(1);
+
+      expect(registry.getSecretsAsEnvVars('$TOKEN')).toEqual({ TOKEN: 'rotated-token' });
+      expect(registry.maskSecretsInOutput('rotated-token')).toBe('<secret-hidden>');
+      expect(callCount).toBe(2);
+    });
+
+    it('still resolves callable secrets that have not been exported', () => {
+      const registry = new SecretRegistry();
+      let callCount = 0;
+      registry.updateSecrets({
+        TOKEN: () => {
+          callCount++;
+          return 'uncached-token';
+        },
+      });
+
+      expect(registry.maskSecretsInOutput('uncached-token')).toBe('<secret-hidden>');
+      expect(callCount).toBe(1);
+    });
+
     it('should mask secret values in output', () => {
       const registry = new SecretRegistry();
       registry.updateSecrets({

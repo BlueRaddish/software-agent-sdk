@@ -222,9 +222,10 @@ export class SecretRegistry {
 
     // Also try to get fresh values from sources (in case they weren't exported yet)
     for (const [key, source] of this.secretSources) {
+      if (this.exportedValues.has(key)) continue;
       try {
         const value = source.getValue();
-        if (value && !this.exportedValues.has(key)) {
+        if (value) {
           maskedText = maskedText.split(value).join('<secret-hidden>');
         }
       } catch {
